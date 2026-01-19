@@ -412,25 +412,9 @@ func (t *PostgresTx) CreateRate(ctx context.Context, rate *PricingRate) error {
 
 // ActivateSnapshot activates a snapshot within a transaction
 func (t *PostgresTx) ActivateSnapshot(ctx context.Context, id uuid.UUID) error {
-	// Deactivate existing snapshots for same cloud/region/alias
-	_, err := t.tx.ExecContext(ctx, `
-		UPDATE pricing_snapshots SET is_active = FALSE 
-		WHERE id IN (
-			SELECT ps2.id FROM pricing_snapshots ps2 
-			JOIN pricing_snapshots ps1 ON ps1.cloud = ps2.cloud 
-				AND ps1.region = ps2.region 
-				AND ps1.provider_alias = ps2.provider_alias
-			WHERE ps1.id = $1 AND ps2.id != $1 AND ps2.is_active = TRUE
-		)
-	`, id)
-	if err != nil {
-		return err
-	}
-	
-	// Activate the new snapshot
-	_, err = t.tx.ExecContext(ctx, `
-		UPDATE pricing_snapshots SET is_active = TRUE WHERE id = $1
-	`, id)
+	// Use the stored procedure which ensures state is updated to 'ready'
+	// and handles archiving of previous snapshots correctly.
+	_, err := t.tx.ExecContext(ctx, "SELECT activate_snapshot($1)", id)
 	return err
 }
 
