@@ -21,22 +21,22 @@ ON pricing_snapshots(cloud, region, provider_alias, state)
 WHERE state = 'ready';
 
 -- Update activate_snapshot function to set state='ready'
-CREATE OR REPLACE FUNCTION activate_snapshot(snapshot_id UUID)
+CREATE OR REPLACE FUNCTION activate_snapshot(p_snapshot_id UUID)
 RETURNS VOID AS $$
 BEGIN
     -- Archive previous active snapshots
     UPDATE pricing_snapshots 
     SET is_active = FALSE, state = 'archived'
     WHERE is_active = TRUE 
-    AND cloud = (SELECT cloud FROM pricing_snapshots WHERE id = snapshot_id)
-    AND region = (SELECT region FROM pricing_snapshots WHERE id = snapshot_id)
-    AND provider_alias = (SELECT provider_alias FROM pricing_snapshots WHERE id = snapshot_id)
-    AND id != snapshot_id;
+    AND cloud = (SELECT cloud FROM pricing_snapshots WHERE id = p_snapshot_id)
+    AND region = (SELECT region FROM pricing_snapshots WHERE id = p_snapshot_id)
+    AND provider_alias = (SELECT provider_alias FROM pricing_snapshots WHERE id = p_snapshot_id)
+    AND id != p_snapshot_id;
     
     -- Activate new snapshot with state='ready'
     UPDATE pricing_snapshots 
     SET is_active = TRUE, state = 'ready'
-    WHERE id = snapshot_id;
+    WHERE id = p_snapshot_id;
 END;
 $$ LANGUAGE plpgsql;
 

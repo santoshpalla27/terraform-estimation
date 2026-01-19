@@ -140,7 +140,39 @@ func runMigrations(dbURL string) error {
 	}
 	defer m.Close()
 
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+	if err := m.Up(); err != nil {
+		if err == migrate.ErrNoChange {
+			return nil
+		}
+		
+		fmt.Printf("Migration failed: %v\n", err)
+
+		// Check for dirty state
+		version, dirty, verErr := m.Version()
+		if verErr != nil {
+			return fmt.Errorf("failed to get migration version: %w", verErr)
+		}
+
+		if dirty && os.Getenv("APP_ENV") != "production" {
+			fmt.Printf("Detected dirty migration at version %d. Attempting auto-heal in dev env...\n", version)
+			
+			// Force previous version (heuristic: assuming 1 step failure)
+			// Simplification: just force version-1. If version is 1, force 0.
+			forceVersion := int(version) - 1
+			if forceVersion < 0 {
+				forceVersion = 0
+			}
+
+			if forceErr := m.Force(forceVersion); forceErr != nil {
+				return fmt.Errorf("failed to force clean dirty state: %w", forceErr)
+			}
+
+			fmt.Printf("Successfully forced version %d. Please fix the migration file and restart.\n", forceVersion)
+			// We intentionally exit here so the user can see the error of the *reason* it failed (the SQL error)
+			// If we retried immediately, it would likely just fail again with the same syntax error.
+			return fmt.Errorf("auto-healed dirty state. Fix migration SQL and restart: %w", err)
+		}
+		
 		return fmt.Errorf("failed to run up migrations: %w", err)
 	}
 
