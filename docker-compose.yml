@@ -23,7 +23,7 @@ services:
     container_name: terra-cost-migrate
     volumes:
       - ./db/migrations:/migrations
-    command: -path=/migrations -database postgres://postgres:postgres@postgres:5432/terracost?sslmode=disable up
+    command: -path=file:///migrations -database postgres://postgres:postgres@postgres:5432/terracost?sslmode=disable up
     depends_on:
       postgres:
         condition: service_healthy
