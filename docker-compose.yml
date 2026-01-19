@@ -1,0 +1,43 @@
+services:
+  app:
+    build: .
+    container_name: terra-cost-ingest
+    environment:
+      - DB_URL=postgres://postgres:postgres@postgres:5432/terracost?sslmode=disable
+      - CLOUD=aws
+      - REGION=us-east-1
+      - SERVICES=AmazonEC2,AmazonS3  # use if you want to fetch only specific services or else comment this line to fetch all services
+      - APP_ENV=production
+    volumes:
+      - ./backups:/app/backups
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - terracost-net
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: terra-cost-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=terracost
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - terracost-net
+
+volumes:
+  postgres_data:
+
+networks:
+  terracost-net:
+    driver: bridge
