@@ -13,22 +13,10 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
     networks:
       - terracost-net
 
-  migrate:
-    image: migrate/migrate
-    container_name: terra-cost-migrate
-    volumes:
-      - ./db/migrations:/migrations
-    command: -path=file:///migrations -database postgres://postgres:postgres@postgres:5432/terracost?sslmode=disable up
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - terracost-net
+
 
   postgres:
     image: postgres:15-alpine

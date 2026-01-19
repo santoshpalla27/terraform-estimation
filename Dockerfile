@@ -29,6 +29,9 @@ RUN apk add --no-cache ca-certificates
 # Copy binary from builder
 COPY --from=builder /app/terracost .
 
+# Copy migrations
+COPY db/migrations /app/migrations
+
 # Create backup directory
 RUN mkdir -p /app/backups
 

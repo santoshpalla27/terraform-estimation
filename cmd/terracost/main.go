@@ -9,6 +9,10 @@ import (
 
 	"terraform-cost/db"
 	"terraform-cost/db/ingestion"
+
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
 func main() {
@@ -51,6 +55,11 @@ func run() error {
 		}
 		fmt.Printf("Waiting for database... (%d/30)\n", i+1)
 		time.Sleep(1 * time.Second)
+	}
+
+	// 2a. Run Migrations
+	if err := runMigrations(dbURL); err != nil {
+		return fmt.Errorf("migration failed: %w", err)
 	}
 
 	// 3. Initialize Registry & Fetchers
@@ -113,5 +122,28 @@ func run() error {
 	fmt.Printf("Duration: %s\n", result.Duration)
 	fmt.Printf("Rates: %d\n", result.NormalizedCount)
 
+	return nil
+}
+
+func runMigrations(dbURL string) error {
+	// Look for migrations in /app/migrations (docker) or ./db/migrations (local)
+	sourceURL := "file://db/migrations"
+	if _, err := os.Stat("/app/migrations"); err == nil {
+		sourceURL = "file:///app/migrations"
+	}
+
+	fmt.Printf("Running migrations from %s...\n", sourceURL)
+	
+	m, err := migrate.New(sourceURL, dbURL)
+	if err != nil {
+		return fmt.Errorf("failed to create migrate instance: %w", err)
+	}
+	defer m.Close()
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		return fmt.Errorf("failed to run up migrations: %w", err)
+	}
+
+	fmt.Println("Database migrations applied successfully")
 	return nil
 }
